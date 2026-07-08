@@ -4,6 +4,7 @@ from app.db.database import get_db
 from app.models.user import UserModel
 from app.schemas.user import User, UserCreate
 from app.core.security import hash_password
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -14,7 +15,7 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=User, status_code=201)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     user_data = user.model_dump(exclude={"password"})
     new_user = UserModel(**user_data, hashed_password=hash_password(user.password))
     db.add(new_user)

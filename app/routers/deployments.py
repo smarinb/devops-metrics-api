@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.deployment import DeploymentModel
 from app.schemas.deployment import Deployment, DeploymentCreate, DeploymentStatus
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/deployments", tags=["deployments"])
 
@@ -29,7 +30,7 @@ def list_deployments(
 
 
 @router.post("/", response_model=Deployment, status_code=201)
-def create_deployment(deployment: DeploymentCreate, db: Session = Depends(get_db)):
+def create_deployment(deployment: DeploymentCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     data = deployment.model_dump()
     data["status"] = data["status"].value
     new_deployment = DeploymentModel(**data)
