@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.service import ServiceModel
 from app.schemas.service import Service, ServiceCreate
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/services", tags=["services"])
 
@@ -13,7 +14,7 @@ def list_services(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=Service, status_code=201)
-def create_service(service: ServiceCreate, db: Session = Depends(get_db)):
+def create_service(service: ServiceCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     new_service = ServiceModel(**service.model_dump())
     db.add(new_service)
     db.commit()
@@ -30,7 +31,7 @@ def get_service(service_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{service_id}", status_code=204)
-def delete_service(service_id: int, db: Session = Depends(get_db)):
+def delete_service(service_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
