@@ -1,11 +1,10 @@
-from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.models.deployment import DeploymentModel
 from app.schemas.deployment import Deployment, DeploymentCreate, DeploymentStatus
 
 router = APIRouter(prefix="/deployments", tags=["deployments"])
-
-fake_db: list[Deployment] = []
-next_id = 1
 
 
 @router.get("/", response_model=list[Deployment])
@@ -15,35 +14,34 @@ def list_deployments(
     status: DeploymentStatus | None = None,
     skip: int = 0,
     limit: int = 20,
+    db: Session = Depends(get_db),
 ):
-    results = fake_db
+    query = db.query(DeploymentModel)
 
     if service_id is not None:
-        results = [d for d in results if d.service_id == service_id]
+        query = query.filter(DeploymentModel.service_id == service_id)
     if environment is not None:
-        results = [d for d in results if d.environment == environment]
+        query = query.filter(DeploymentModel.environment == environment)
     if status is not None:
-        results = [d for d in results if d.status == status]
+        query = query.filter(DeploymentModel.status == status.value)
 
-    return results[skip: skip + limit]
+    return query.offset(skip).limit(limit).all()
 
 
 @router.post("/", response_model=Deployment, status_code=201)
-def create_deployment(deployment: DeploymentCreate):
-    global next_id
-    new_deployment = Deployment(
-        id=next_id,
-        timestamp=datetime.now(timezone.utc),
-        **deployment.model_dump(),
-    )
-    fake_db.append(new_deployment)
-    next_id += 1
+def create_deployment(deployment: DeploymentCreate, db: Session = Depends(get_db)):
+    data = deployment.model_dump()
+    data["status"] = data["status"].value
+    new_deployment = DeploymentModel(**data)
+    db.add(new_deployment)
+    db.commit()
+    db.refresh(new_deployment)
     return new_deployment
 
 
 @router.get("/{deployment_id}", response_model=Deployment)
-def get_deployment(deployment_id: int):
-    for d in fake_db:
-        if d.id == deployment_id:
-            return d
-    raise HTTPException(status_code=404, detail="Deployment not found")
+def get_deployment(deployment_id: int, db: Session = Depends(get_db)):
+    deployment = db.query(DeploymentModel).filter(DeploymentModel.id == deployment_id).first()
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
