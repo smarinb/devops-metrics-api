@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import services, deployments
+from app.routers import services, deployments, users
 
 app = FastAPI(
     title="DevOps Metrics API",
@@ -9,6 +9,7 @@ app = FastAPI(
 
 app.include_router(services.router)
 app.include_router(deployments.router)
+app.include_router(users.router)
 
 
 @app.get("/health")
